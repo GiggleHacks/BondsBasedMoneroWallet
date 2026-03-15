@@ -1,0 +1,72 @@
+{
+  "name": "bonds-based-monero-wallet",
+  "version": "1.0.0",
+  "description": "Bond's Based Monero Wallet - For GigaChads",
+  "main": "./out/main/index.js",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "preview": "electron-vite preview",
+    "package": "electron-vite build && electron-builder --win"
+  },
+  "keywords": [
+    "monero",
+    "wallet",
+    "electron"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@headlessui/react": "^2.2.9",
+    "@react-three/drei": "^10.7.7",
+    "@react-three/fiber": "^9.5.0",
+    "browserslist": "^4.28.1",
+    "caniuse-lite": "^1.0.30001778",
+    "electron-store": "^11.0.2",
+    "framer-motion": "^12.36.0",
+    "lucide-react": "^0.577.0",
+    "monero-ts": "^0.11.8",
+    "qrcode": "^1.5.4",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "react-hot-toast": "^2.6.0",
+    "react-router-dom": "^7.13.1",
+    "three": "^0.183.2",
+    "vite": "^5.4.19",
+    "zustand": "^5.0.11"
+  },
+  "devDependencies": {
+    "@types/qrcode": "^1.5.5",
+    "@types/react": "^19.1.8",
+    "@types/react-dom": "^19.1.6",
+    "@vitejs/plugin-react": "^4.3.4",
+    "autoprefixer": "^10.4.20",
+    "electron": "^41.0.2",
+    "electron-builder": "^26.0.12",
+    "electron-vite": "^2.3.0",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^3.4.17",
+    "typescript": "^5.8.3"
+  },
+  "build": {
+    "appId": "com.based.monero-wallet",
+    "productName": "Based Monero Wallet",
+    "directories": {
+      "output": "dist"
+    },
+    "win": {
+      "target": [
+        "nsis"
+      ],
+      "icon": "resources/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    },
+    "files": [
+      "out/**/*",
+      "resources/**/*"
+    ]
+  }
+}
