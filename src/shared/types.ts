@@ -135,10 +135,12 @@ export interface AppAPI {
   close: () => void
   isMaximized: () => Promise<boolean>
   onMaximizeChange: (callback: (isMaximized: boolean) => void) => () => void
+  selectFile: () => Promise<string | null>
   selectFolder: () => Promise<string | null>
   getWalletDir: () => Promise<string>
   setWalletDir: (dir: string) => Promise<void>
   openFolder: (path: string) => Promise<void>
+  openExternal: (url: string) => Promise<void>
   getVersion: () => string
   getLogs: () => Promise<LogEntry[]>
   clearLogs: () => Promise<void>

@@ -23,7 +23,7 @@ export const SOUND_META: Record<SoundKey, SoundMeta> = {
   send:       { label: 'Transaction Sent',   description: 'Plays after a successful XMR send',         file: 'sound1.mp3'     },
   testNodes:  { label: 'Test All Nodes',     description: 'Plays when running the node speed test',    file: 'fffsend.mp3'    },
   revealSeed: { label: 'Reveal Seed Phrase', description: 'Plays when the recovery seed is revealed',  file: 'alertseed.wav'  },
-  spinModel:  { label: '3D Model Spin',      description: 'Plays when spinning the sidebar model fast',file: 'thatsgood.mp3'  },
+  spinModel:  { label: '3D Model Spin',      description: 'Plays when spinning the sidebar model fast',file: 'thatsgoodsmall.wav'},
 }
 
 interface SoundState {

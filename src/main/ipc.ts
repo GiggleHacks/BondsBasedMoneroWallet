@@ -264,6 +264,7 @@ export function registerIpcHandlers(): void {
   // --- App ---
   ipcMain.handle('app:getLogs', () => getLogs())
   ipcMain.handle('app:clearLogs', () => clearLogs())
+  ipcMain.handle('app:openExternal', (_, url: string) => shell.openExternal(url))
 
   ipcMain.handle('app:minimize', () => {
     BrowserWindow.getFocusedWindow()?.minimize()
@@ -296,6 +297,15 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle('app:openFolder', async (_, folderPath: string) => {
     await shell.openPath(folderPath)
+  })
+
+  ipcMain.handle('app:selectFile', async () => {
+    const result = await dialog.showOpenDialog({
+      properties: ['openFile'],
+      title: 'Open Monero Wallet File',
+      filters: [{ name: 'Monero Wallet', extensions: ['keys'] }],
+    })
+    return result.canceled ? null : result.filePaths[0]
   })
 
   ipcMain.handle('app:selectFolder', async () => {
