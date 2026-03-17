@@ -100,7 +100,7 @@ export default function Onboarding() {
   // Typewriter effect for welcome screen
   const line1 = isAddWallet ? 'ADD WALLET' : "BOND'S BASED"
   const line2 = isAddWallet ? '' : 'MONERO WALLET'
-  const line3 = isAddWallet ? 'CREATE OR RESTORE A WALLET' : 'The Monero Wallet for Extremely Law-Abiding Tax-Compliant Individuals'
+  const line3 = isAddWallet ? 'CREATE OR RESTORE A WALLET' : 'The Monero Wallet for Extremely Law-Abiding\nTax-Compliant Individuals'
   const fullText = [line1, line2, line3].filter(Boolean).join('\n')
 
   const [typedText, setTypedText] = useState('')
@@ -307,8 +307,8 @@ export default function Onboarding() {
                   <span style={{ opacity: showCursor ? 1 : 0, color: '#f26822' }}>█</span>
                 )}
               </h2>
-              <p style={{ fontSize: '0.85rem', letterSpacing: '0.14em', color: '#ffffff', marginTop: '6px', visibility: typedLines.length > 2 ? 'visible' : 'hidden' }}>
-                {typedLines[2] ?? '\u00a0'}
+              <p style={{ fontSize: '0.85rem', letterSpacing: '0.14em', color: '#ffffff', marginTop: '6px', whiteSpace: 'pre-line', visibility: typedLines.length > 2 ? 'visible' : 'hidden' }}>
+                {[typedLines[2], typedLines[3]].filter(Boolean).join('\n') || '\u00a0'}
                 {typedLines.length > 2 && (
                   <span style={{ opacity: showCursor ? 1 : 0, color: '#f26822' }}>█</span>
                 )}
