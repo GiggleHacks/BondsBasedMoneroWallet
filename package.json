@@ -9,6 +9,7 @@
     "preview": "electron-vite preview",
     "package": "node -e \"const p=process.platform; const s={win32:'package:win',darwin:'package:mac',linux:'package:linux'}[p]; if(!s){console.error('Unsupported platform: '+p); process.exit(1);} require('child_process').spawnSync(process.platform==='win32'?'npm.cmd':'npm',['run',s],{stdio:'inherit'});\"",
     "package:win": "electron-vite build && electron-builder --win",
+    "package:portable": "electron-vite build && electron-builder --win --config.win.target=portable",
     "package:mac": "electron-vite build && electron-builder --mac",
     "package:linux": "electron-vite build && electron-builder --linux"
   },
@@ -57,15 +58,23 @@
     "directories": {
       "output": "dist"
     },
+    "asarUnpack": [
+      "node_modules/monero-ts/**/*"
+    ],
     "win": {
       "target": [
-        "nsis"
+        "nsis",
+        "portable"
       ],
-      "icon": "resources/icon.ico"
+      "icon": "resources/icon.png"
     },
     "nsis": {
       "oneClick": false,
-      "allowToChangeInstallationDirectory": true
+      "allowToChangeInstallationDirectory": true,
+      "deleteAppDataOnUninstall": false
+    },
+    "portable": {
+      "artifactName": "${productName}-${version}-portable.exe"
     },
     "files": [
       "out/**/*",

@@ -3,6 +3,7 @@ import { Outlet } from 'react-router-dom'
 import TitleBar from './TitleBar'
 import Sidebar from './Sidebar'
 import type { LogEntry } from '@shared/types'
+import { useWalletStore } from '@/store/walletStore'
 
 const SOURCE_COLOR: Record<string, string> = {
   wallet: '#a78bfa',
@@ -28,6 +29,7 @@ function nodeLabel(uri: string | null): string {
 }
 
 export default function AppLayout() {
+  const { setPriceHistory24h } = useWalletStore()
   const [lastLog, setLastLog] = useState<LogEntry | null>(null)
   const [connectedNode, setConnectedNode] = useState<string | null>(null)
   const [paymentGlow, setPaymentGlow] = useState(false)
@@ -38,12 +40,21 @@ export default function AppLayout() {
     const unsub = window.api.wallet.onNewPayment(() => {
       if (glowTimeout.current) clearTimeout(glowTimeout.current)
       setPaymentGlow(true)
-      glowTimeout.current = setTimeout(() => setPaymentGlow(false), 1800)
+      glowTimeout.current = setTimeout(() => setPaymentGlow(false), 700)
     })
     return () => {
       unsub()
       if (glowTimeout.current) clearTimeout(glowTimeout.current)
     }
+  }, [])
+
+  // Prefetch 24h price history in the background so Price page loads instantly
+  useEffect(() => {
+    setTimeout(() => {
+      window.api.price.getXmrPriceHistory('1')
+        .then(data => { if (data && data.length > 0) setPriceHistory24h(data) })
+        .catch(() => {})
+    }, 2000)
   }, [])
 
   useEffect(() => {
@@ -140,6 +151,7 @@ export default function AppLayout() {
             <span style={{ color: '#444' }}>ready_</span>
           )}
         </div>
+
       </div>
 
       {/* Orange glow vignette on new payment */}
@@ -149,7 +161,7 @@ export default function AppLayout() {
         pointerEvents: 'none',
         zIndex: 9999,
         opacity: paymentGlow ? 1 : 0,
-        transition: paymentGlow ? 'opacity 0.15s ease-out' : 'opacity 0.6s ease-in',
+        transition: paymentGlow ? 'opacity 0.08s ease-out' : 'opacity 0.25s ease-in',
         boxShadow: 'inset 0 0 120px 40px rgba(242, 104, 34, 0.15), inset 0 0 60px 20px rgba(242, 104, 34, 0.08)',
       }} />
     </div>

@@ -1,5 +1,5 @@
 import { useLocation, useNavigate } from 'react-router-dom'
-import { LayoutDashboard, ArrowUpRight, ArrowDownLeft, List, TrendingUp, Settings } from 'lucide-react'
+import { LayoutDashboard, ArrowUpRight, ArrowDownLeft, TrendingUp, Settings, Landmark } from 'lucide-react'
 import { lazy, Suspense, useState, useEffect } from 'react'
 import mascotImg from '@/assets/davidbond2.png'
 
@@ -23,9 +23,9 @@ const navItems = [
   { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { path: '/send', label: 'Send XMR', icon: ArrowUpRight },
   { path: '/receive', label: 'Receive', icon: ArrowDownLeft },
-  { path: '/transactions', label: 'TX History', icon: List },
   { path: '/settings', label: 'Settings', icon: Settings },
   { path: '/price', label: 'Price', icon: TrendingUp },
+  { path: '/irs', label: 'FILE TAXES', icon: Landmark },
 ]
 
 export default function Sidebar() {
@@ -106,16 +106,6 @@ export default function Sidebar() {
             textTransform: 'uppercase',
           }}>
             Monero Wallet
-          </div>
-          <div style={{
-            fontSize: '10px',
-            color: '#888888',
-            letterSpacing: '0.18em',
-            marginTop: '3px',
-            fontWeight: 500,
-            textTransform: 'uppercase',
-          }}>
-            for GigaChads
           </div>
         </div>
       </div>

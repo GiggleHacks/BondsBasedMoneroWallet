@@ -1,18 +1,20 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { motion } from 'framer-motion'
-import { Plus, RotateCcw, Eye, EyeOff, Loader2, Minus, Square, X, Copy, Check, FolderOpen, Pencil } from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { Plus, RotateCcw, Eye, EyeOff, Loader2, Minus, Square, X, Copy, Check, FolderOpen, Pencil, FolderSearch } from 'lucide-react'
 import { useWalletStore } from '../store/walletStore'
 import type { WalletProfile } from '@shared/types'
 import mascotImg from '@/assets/davidbond2.png'
 import MatrixRain from '../components/MatrixRain'
+import { playSound } from '@/lib/playSound'
+import startup4Sound from '@/assets/sounds/startup4.mp3'
 
 type Step = 'welcome' | 'create-password' | 'show-seed' | 'restore-seed' | 'restore-password' | 'syncing'
 
 export default function Onboarding() {
   const navigate = useNavigate()
   const location = useLocation()
-  const { setWalletOpen, setAddress, setSeed, setLoading, setLocked, setBalance } = useWalletStore()
+  const { setWalletOpen, setAddress, setSeed, setLoading, setLocked, setBalance, setCurrentWalletName } = useWalletStore()
 
   const isAddWallet = !!(location.state as any)?.addWallet
   const startRestore = !!(location.state as any)?.restore
@@ -32,6 +34,13 @@ export default function Onboarding() {
   const [walletDir, setWalletDirState] = useState('')
   const [existingWallets, setExistingWallets] = useState<WalletProfile[]>([])
 
+  // Inline unlock state
+  const [selectedExisting, setSelectedExisting] = useState<string | null>(null)
+  const [unlockPwd, setUnlockPwd] = useState('')
+  const [showUnlockPwd, setShowUnlockPwd] = useState(false)
+  const [unlockError, setUnlockError] = useState('')
+  const [unlockLoading, setUnlockLoading] = useState(false)
+
   useEffect(() => {
     window.api.app.getWalletDir().then(setWalletDirState).catch(() => {})
     window.api.wallet.listWallets().then(setExistingWallets).catch(() => {})
@@ -44,13 +53,54 @@ export default function Onboarding() {
       setWalletDirState(selected)
       const wallets = await window.api.wallet.listWallets()
       setExistingWallets(wallets)
+      setSelectedExisting(null)
+      setUnlockPwd('')
+    }
+  }
+
+  const handleOpenFile = async () => {
+    const filePath = await window.api.app.selectFile()
+    if (!filePath) return
+    // Extract directory and filename (strip .keys extension)
+    const sep = filePath.includes('\\') ? '\\' : '/'
+    const parts = filePath.split(sep)
+    const fileWithExt = parts[parts.length - 1]
+    const dir = parts.slice(0, -1).join(sep)
+    const name = fileWithExt.replace(/\.keys$/i, '')
+    await window.api.app.setWalletDir(dir)
+    setWalletDirState(dir)
+    const wallets = await window.api.wallet.listWallets()
+    setExistingWallets(wallets)
+    setSelectedExisting(name)
+    setUnlockPwd('')
+    setUnlockError('')
+  }
+
+  const handleInlineUnlock = async () => {
+    if (!unlockPwd || !selectedExisting) return
+    setUnlockError('')
+    setUnlockLoading(true)
+    try {
+      const info = await window.api.wallet.open(unlockPwd, selectedExisting)
+      setWalletOpen(true)
+      setLocked(false)
+      setAddress(info.primaryAddress)
+      setBalance(info.balance, info.unlockedBalance)
+      setCurrentWalletName(selectedExisting)
+      await window.api.wallet.startSync()
+      playSound(startup4Sound, 'startup', 0.8)
+      navigate('/dashboard')
+    } catch {
+      setUnlockError('Incorrect password')
+    } finally {
+      setUnlockLoading(false)
     }
   }
 
   // Typewriter effect for welcome screen
   const line1 = isAddWallet ? 'ADD WALLET' : "BOND'S BASED"
   const line2 = isAddWallet ? '' : 'MONERO WALLET'
-  const line3 = isAddWallet ? 'CREATE OR RESTORE A WALLET' : 'FOR GIGACHADS'
+  const line3 = isAddWallet ? 'CREATE OR RESTORE A WALLET' : 'The Monero Wallet for Extremely Law-Abiding\nTax-Compliant Individuals'
   const fullText = [line1, line2, line3].filter(Boolean).join('\n')
 
   const [typedText, setTypedText] = useState('')
@@ -208,7 +258,7 @@ export default function Onboarding() {
           </button>
         </div>
       </div>
-      <div className="flex-1 flex items-center justify-center p-8" style={{ position: 'relative', zIndex: 1 }}>
+      <div className="flex-1 flex items-center justify-center p-8" style={{ position: 'relative', zIndex: 1, overflowY: 'auto', alignItems: 'flex-start', paddingTop: '2vh' }}>
       <motion.div
         key={step}
         initial={{ opacity: 0, y: 20 }}
@@ -218,7 +268,7 @@ export default function Onboarding() {
         className="w-full max-w-lg"
       >
         {step === 'welcome' && (
-          <div className="space-y-6">
+          <div className="space-y-4">
             {/* Big centred mascot */}
             <div style={{ display: 'flex', justifyContent: 'center' }}>
               <motion.div
@@ -230,8 +280,8 @@ export default function Onboarding() {
                   src={mascotImg}
                   alt="Bond"
                   style={{
-                    width: 'clamp(160px, 28vh, 260px)',
-                    height: 'clamp(160px, 28vh, 260px)',
+                    width: 'clamp(140px, 22vh, 220px)',
+                    height: 'clamp(140px, 22vh, 220px)',
                     objectFit: 'cover',
                     objectPosition: 'center top',
                     borderRadius: '20px',
@@ -243,28 +293,26 @@ export default function Onboarding() {
               </motion.div>
             </div>
 
-            {/* Title below the image, centred */}
-            <div style={{ fontFamily: "'IBM Plex Mono', monospace", textAlign: 'center' }}>
+            {/* Title below the image, centred — fixed height to prevent mascot shift */}
+            <div style={{ fontFamily: "'IBM Plex Mono', monospace", textAlign: 'center', minHeight: '9rem' }}>
               <h1 style={{ fontSize: '1.65rem', fontWeight: 700, letterSpacing: '0.06em', color: '#f0f0f0', marginBottom: '4px', lineHeight: 1.15 }}>
                 {typedLines[0] ?? ''}
                 {typedLines.length <= 1 && (
                   <span style={{ opacity: showCursor ? 1 : 0, color: '#f26822' }}>█</span>
                 )}
               </h1>
-              {(typedLines.length > 1 || fullText.includes('\n')) && (
-                <h2 style={{ fontSize: '1.45rem', fontWeight: 700, letterSpacing: '0.06em', color: '#f26822', marginBottom: '2px', lineHeight: 1.15 }}>
-                  {typedLines[1] ?? ''}
-                  {typedLines.length === 2 && (
-                    <span style={{ opacity: showCursor ? 1 : 0, color: '#f26822' }}>█</span>
-                  )}
-                </h2>
-              )}
-              {typedLines.length > 2 && (
-                <p style={{ fontSize: '0.85rem', letterSpacing: '0.14em', color: '#888', marginTop: '6px' }}>
-                  {typedLines[2] ?? ''}
+              <h2 style={{ fontSize: '1.45rem', fontWeight: 700, letterSpacing: '0.06em', color: '#f26822', marginBottom: '2px', lineHeight: 1.15, visibility: typedLines.length > 1 ? 'visible' : 'hidden' }}>
+                {typedLines[1] ?? '\u00a0'}
+                {typedLines.length === 2 && (
                   <span style={{ opacity: showCursor ? 1 : 0, color: '#f26822' }}>█</span>
-                </p>
-              )}
+                )}
+              </h2>
+              <p style={{ fontSize: '0.85rem', letterSpacing: '0.14em', color: '#ffffff', marginTop: '6px', whiteSpace: 'pre-line', visibility: typedLines.length > 2 ? 'visible' : 'hidden' }}>
+                {[typedLines[2], typedLines[3]].filter(Boolean).join('\n') || '\u00a0'}
+                {typedLines.length > 2 && (
+                  <span style={{ opacity: showCursor ? 1 : 0, color: '#f26822' }}>█</span>
+                )}
+              </p>
             </div>
 
             <div className="space-y-3">
@@ -302,6 +350,7 @@ export default function Onboarding() {
                 textAlign: 'left',
                 overflow: 'hidden',
               }}>
+                {/* Header row with Open button */}
                 <div style={{
                   padding: '8px 14px',
                   borderBottom: '1px solid rgba(255, 255, 255, 0.06)',
@@ -310,46 +359,206 @@ export default function Onboarding() {
                   letterSpacing: '0.12em',
                   textTransform: 'uppercase',
                   fontWeight: 600,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
                 }}>
-                  EXISTING WALLETS
+                  <span>EXISTING WALLETS</span>
+                  <button
+                    onClick={handleOpenFile}
+                    title="Open wallet file from any location"
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: '5px',
+                      background: 'rgba(242,104,34,0.08)',
+                      border: '1px solid rgba(242,104,34,0.2)',
+                      borderRadius: '4px',
+                      color: '#f26822',
+                      fontFamily: "'IBM Plex Mono', monospace",
+                      fontSize: '10px',
+                      fontWeight: 600,
+                      letterSpacing: '0.1em',
+                      padding: '3px 8px',
+                      cursor: 'pointer',
+                      transition: 'all 0.12s',
+                      textTransform: 'uppercase',
+                    }}
+                    onMouseEnter={e => { e.currentTarget.style.background = 'rgba(242,104,34,0.16)' }}
+                    onMouseLeave={e => { e.currentTarget.style.background = 'rgba(242,104,34,0.08)' }}
+                  >
+                    <FolderSearch size={11} />
+                    Open
+                  </button>
                 </div>
+
+                {/* Wallet list */}
                 <div style={{ maxHeight: '120px', overflowY: 'auto' }}>
-                  {existingWallets.map((w) => (
-                    <button
-                      key={w.filename}
-                      onClick={() => navigate('/unlock')}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '8px',
-                        width: '100%',
-                        padding: '8px 14px',
-                        background: 'transparent',
-                        border: 'none',
-                        borderLeft: '2px solid transparent',
-                        color: '#b0b0b0',
-                        fontFamily: "'IBM Plex Mono', monospace",
-                        fontSize: '13px',
-                        textAlign: 'left',
-                        cursor: 'pointer',
-                        transition: 'all 0.12s',
-                      }}
-                      onMouseEnter={e => {
-                        e.currentTarget.style.background = 'rgba(242, 104, 34, 0.06)'
-                        e.currentTarget.style.borderLeftColor = '#f26822'
-                        e.currentTarget.style.color = '#f26822'
-                      }}
-                      onMouseLeave={e => {
-                        e.currentTarget.style.background = 'transparent'
-                        e.currentTarget.style.borderLeftColor = 'transparent'
-                        e.currentTarget.style.color = '#b0b0b0'
-                      }}
-                    >
-                      <span style={{ color: '#f26822', fontWeight: 700 }}>{'>'}</span>
-                      <span>{w.filename}</span>
-                    </button>
-                  ))}
+                  {existingWallets.map((w) => {
+                    const isSelected = selectedExisting === w.filename
+                    return (
+                      <button
+                        key={w.filename}
+                        onClick={() => {
+                          setSelectedExisting(isSelected ? null : w.filename)
+                          setUnlockPwd('')
+                          setUnlockError('')
+                        }}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px',
+                          width: '100%',
+                          padding: '8px 14px',
+                          background: isSelected ? 'rgba(242, 104, 34, 0.08)' : 'transparent',
+                          border: 'none',
+                          borderLeft: isSelected ? '2px solid #f26822' : '2px solid transparent',
+                          color: isSelected ? '#f26822' : '#b0b0b0',
+                          fontFamily: "'IBM Plex Mono', monospace",
+                          fontSize: '13px',
+                          fontWeight: isSelected ? 600 : 400,
+                          textAlign: 'left',
+                          cursor: 'pointer',
+                          transition: 'all 0.12s',
+                        }}
+                        onMouseEnter={e => {
+                          if (!isSelected) {
+                            e.currentTarget.style.background = 'rgba(242, 104, 34, 0.06)'
+                            e.currentTarget.style.borderLeftColor = '#555'
+                            e.currentTarget.style.color = '#e0e0e0'
+                          }
+                        }}
+                        onMouseLeave={e => {
+                          if (!isSelected) {
+                            e.currentTarget.style.background = 'transparent'
+                            e.currentTarget.style.borderLeftColor = 'transparent'
+                            e.currentTarget.style.color = '#b0b0b0'
+                          }
+                        }}
+                      >
+                        <span style={{ color: '#f26822', fontWeight: 700, width: '14px', flexShrink: 0 }}>
+                          {isSelected ? '>' : ' '}
+                        </span>
+                        <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {w.filename}
+                        </span>
+                      </button>
+                    )
+                  })}
                 </div>
+
+                {/* Inline password panel — slides in when a wallet is selected */}
+                <AnimatePresence>
+                  {selectedExisting && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: 'auto', opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: 0.18 }}
+                      style={{ overflow: 'hidden', borderTop: '1px solid rgba(255,255,255,0.06)' }}
+                    >
+                      <div style={{ padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                        {/* Password input */}
+                        <div style={{ position: 'relative' }}>
+                          <input
+                            type={showUnlockPwd ? 'text' : 'password'}
+                            value={unlockPwd}
+                            onChange={e => { setUnlockPwd(e.target.value); setUnlockError('') }}
+                            onKeyDown={e => e.key === 'Enter' && handleInlineUnlock()}
+                            placeholder="Password"
+                            autoFocus
+                            style={{
+                              width: '100%',
+                              padding: '9px 38px 9px 12px',
+                              background: 'rgba(255,255,255,0.04)',
+                              border: unlockError
+                                ? '1px solid rgba(239,68,68,0.5)'
+                                : '1px solid rgba(255,255,255,0.08)',
+                              borderRadius: '6px',
+                              color: '#e0e0e0',
+                              fontFamily: "'IBM Plex Mono', monospace",
+                              fontSize: '13px',
+                              outline: 'none',
+                              transition: 'border-color 0.15s',
+                              boxSizing: 'border-box',
+                            }}
+                            onFocus={e => { if (!unlockError) e.currentTarget.style.borderColor = 'rgba(242,104,34,0.5)' }}
+                            onBlur={e => { if (!unlockError) e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)' }}
+                          />
+                          <button
+                            onClick={() => setShowUnlockPwd(v => !v)}
+                            style={{
+                              position: 'absolute', right: '10px', top: '50%',
+                              transform: 'translateY(-50%)',
+                              background: 'none', border: 'none',
+                              color: '#666', cursor: 'pointer', padding: '2px',
+                            }}
+                          >
+                            {showUnlockPwd ? <EyeOff size={14} /> : <Eye size={14} />}
+                          </button>
+                        </div>
+
+                        {unlockError && (
+                          <div style={{
+                            fontSize: '11px', color: '#ef4444',
+                            padding: '5px 9px',
+                            background: 'rgba(239,68,68,0.08)',
+                            borderRadius: '4px',
+                            border: '1px solid rgba(239,68,68,0.15)',
+                          }}>
+                            {unlockError}
+                          </div>
+                        )}
+
+                        {/* Unlock + Cancel row */}
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          <button
+                            onClick={handleInlineUnlock}
+                            disabled={unlockLoading || !unlockPwd}
+                            style={{
+                              flex: 1,
+                              padding: '9px',
+                              background: unlockLoading || !unlockPwd ? 'rgba(242,104,34,0.3)' : '#f26822',
+                              border: 'none',
+                              borderRadius: '6px',
+                              color: '#fff',
+                              fontFamily: "'IBM Plex Mono', monospace",
+                              fontSize: '12px',
+                              fontWeight: 600,
+                              cursor: unlockLoading || !unlockPwd ? 'not-allowed' : 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              gap: '6px',
+                              transition: 'background 0.12s',
+                            }}
+                          >
+                            {unlockLoading
+                              ? <><Loader2 size={13} className="animate-spin" /> Unlocking...</>
+                              : '> Unlock Wallet'
+                            }
+                          </button>
+                          <button
+                            onClick={() => { setSelectedExisting(null); setUnlockPwd(''); setUnlockError('') }}
+                            style={{
+                              padding: '9px 14px',
+                              background: 'transparent',
+                              border: '1px solid rgba(255,255,255,0.08)',
+                              borderRadius: '6px',
+                              color: '#666',
+                              fontFamily: "'IBM Plex Mono', monospace",
+                              fontSize: '12px',
+                              cursor: 'pointer',
+                              transition: 'all 0.12s',
+                            }}
+                            onMouseEnter={e => { e.currentTarget.style.color = '#e0e0e0'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.2)' }}
+                            onMouseLeave={e => { e.currentTarget.style.color = '#666'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)' }}
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
             )}
 

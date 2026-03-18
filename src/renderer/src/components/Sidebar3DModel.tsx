@@ -3,7 +3,7 @@ import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { useGLTF } from '@react-three/drei'
 import * as THREE from 'three'
 import modelUrl from '@/assets/model.glb'
-import thatsGoodSound from '@/assets/sounds/thatsgood.mp3'
+import thatsGoodSound from '@/assets/sounds/thatsgoodsmall.wav'
 import { playSound } from '@/lib/playSound'
 
 const AUTO_SPEED = 0.003 // slow museum rotation

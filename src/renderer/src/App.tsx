@@ -16,6 +16,7 @@ import Receive from './pages/Receive'
 import Transactions from './pages/Transactions'
 import Settings from './pages/Settings'
 import Price from './pages/Price'
+import IRS from './pages/IRS'
 
 export default function App() {
   const [initialRoute, setInitialRoute] = useState<string | null>(null)
@@ -48,8 +49,8 @@ export default function App() {
     try {
       const wallets = await window.api.wallet.listWallets()
       if (wallets.length > 0) {
-        setInitialRoute('/unlock')
-        navigate('/unlock')
+        setInitialRoute('/onboarding')
+        navigate('/onboarding')
       } else {
         setInitialRoute('/onboarding')
         navigate('/onboarding')
@@ -107,6 +108,7 @@ export default function App() {
             <Route path="/transactions" element={<Transactions />} />
             <Route path="/price" element={<Price />} />
             <Route path="/settings" element={<Settings />} />
+            <Route path="/irs" element={<IRS />} />
           </Route>
 
           <Route path="*" element={<Navigate to="/onboarding" replace />} />

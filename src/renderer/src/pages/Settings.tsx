@@ -6,7 +6,7 @@ import startupSound from '@/assets/sounds/startup3.mp3'
 import clickySound from '@/assets/sounds/clicky2.mp3'
 import moneySound from '@/assets/sounds/money.mp3'
 import sendSound from '@/assets/sounds/sound1.mp3'
-import thatsGoodSound from '@/assets/sounds/thatsgood.mp3'
+import thatsGoodSound from '@/assets/sounds/thatsgoodsmall.wav'
 import { playSound } from '@/lib/playSound'
 import { useSoundStore, SOUND_META, type SoundKey } from '@/store/soundStore'
 import {

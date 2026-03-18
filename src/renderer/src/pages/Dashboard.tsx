@@ -16,7 +16,6 @@ import {
 } from 'lucide-react'
 import { useWalletStore } from '../store/walletStore'
 import { formatXmrDisplay, formatTimestamp, truncateAddress, atomicToUsd, formatUsd } from '../lib/formatXmr'
-
 export default function Dashboard() {
   const navigate = useNavigate()
   const {
@@ -283,6 +282,13 @@ export default function Dashboard() {
               <ArrowDownLeft size={18} />
               Receive
             </button>
+            <button
+              onClick={() => window.api.app.openExternal('https://ff.io/?ref=1utm5vqa')}
+              className="btn-secondary flex items-center gap-2"
+            >
+              <TrendingUp size={18} />
+              Swap XMR
+            </button>
           </div>
         </div>
       </motion.div>
@@ -430,6 +436,7 @@ export default function Dashboard() {
           )}
         </div>
       </motion.div>
+
     </div>
   )
 }
