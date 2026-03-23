@@ -6,29 +6,52 @@ import { syncService } from './services/sync.service'
 import { priceService } from './services/price.service'
 import { getWalletDir, setWalletDir, getLastNode, setLastNode } from './utils/paths'
 import { appLog, getLogs, clearLogs } from './utils/logger'
+import {
+  validatePassword,
+  validateSeed,
+  validateRestoreHeight,
+  validateMoneroAddress,
+  validateAtomicAmount,
+  validatePriority,
+  validateUri,
+  sanitizeWalletName,
+  assertString,
+  assertOptionalString,
+} from './utils/validators'
+
+// Track whether sync listeners have been registered to prevent accumulation
+let syncListenersRegistered = false
 
 export function registerIpcHandlers(): void {
   appLog('info', 'app', "Bond's Based Monero Wallet started")
   // --- Wallet ---
-  ipcMain.handle('wallet:create', async (_, password: string, walletName?: string) => {
-    appLog('info', 'wallet', `Creating new wallet${walletName ? ` "${walletName}"` : ''}`)
+  ipcMain.handle('wallet:create', async (_, password: unknown, walletName?: unknown) => {
+    const pw = validatePassword(password)
+    const name = walletName != null ? sanitizeWalletName(walletName) : undefined
+    appLog('info', 'wallet', `Creating new wallet${name ? ` "${name}"` : ''}`)
     const bestNode = await nodeService.getBestNode()
-    const result = await walletService.createWallet(password, bestNode, walletName)
+    const result = await walletService.createWallet(pw, bestNode, name)
     setLastNode(bestNode)
     appLog('info', 'wallet', `Wallet created — address: ${result.primaryAddress.slice(0, 16)}...`)
     return result
   })
 
-  ipcMain.handle('wallet:restore', async (_, seed: string, password: string, restoreHeight: number, walletName?: string) => {
-    appLog('info', 'wallet', `Restoring wallet from seed${restoreHeight ? ` (height: ${restoreHeight})` : ''}`)
+  ipcMain.handle('wallet:restore', async (_, seed: unknown, password: unknown, restoreHeight: unknown, walletName?: unknown) => {
+    const s = validateSeed(seed)
+    const pw = validatePassword(password)
+    const rh = validateRestoreHeight(restoreHeight)
+    const name = walletName != null ? sanitizeWalletName(walletName) : undefined
+    appLog('info', 'wallet', `Restoring wallet from seed${rh ? ` (height: ${rh})` : ''}`)
     const bestNode = await nodeService.getBestNode()
-    await walletService.restoreWallet(seed, password, restoreHeight, bestNode, walletName)
+    await walletService.restoreWallet(s, pw, rh, bestNode, name)
     setLastNode(bestNode)
     appLog('info', 'wallet', 'Wallet restored successfully')
   })
 
-  ipcMain.handle('wallet:open', async (_, password: string, walletName?: string) => {
-    appLog('info', 'wallet', `Opening wallet${walletName ? ` "${walletName}"` : ''}`)
+  ipcMain.handle('wallet:open', async (_, password: unknown, walletName?: unknown) => {
+    const pw = validatePassword(password)
+    const name = walletName != null ? sanitizeWalletName(walletName) : undefined
+    appLog('info', 'wallet', `Opening wallet${name ? ` "${name}"` : ''}`)
     let nodeUri: string
     const lastNode = getLastNode()
     if (lastNode) {
@@ -45,9 +68,9 @@ export function registerIpcHandlers(): void {
       nodeUri = await nodeService.getBestNode()
     }
     nodeService.setCurrentUri(nodeUri)
-    const info = await walletService.openWallet(password, nodeUri, walletName)
+    const info = await walletService.openWallet(pw, nodeUri, name)
     setLastNode(nodeUri)
-    appLog('info', 'wallet', `Wallet open — height: ${info.syncHeight}, balance: ${(BigInt(info.balance) / 1000000000000n).toString()} XMR`)
+    appLog('info', 'wallet', `Wallet open — height: ${info.syncHeight}`)
     return info
   })
 
@@ -59,8 +82,9 @@ export function registerIpcHandlers(): void {
     return walletService.getLastWallet()
   })
 
-  ipcMain.handle('wallet:setLastWallet', async (_, filename: string) => {
-    return walletService.setLastWallet(filename)
+  ipcMain.handle('wallet:setLastWallet', async (_, filename: unknown) => {
+    const name = sanitizeWalletName(filename)
+    return walletService.setLastWallet(name)
   })
 
   ipcMain.handle('wallet:close', async () => {
@@ -75,11 +99,16 @@ export function registerIpcHandlers(): void {
     return walletService.getBalance()
   })
 
-  ipcMain.handle('wallet:getAddress', async (_, accountIdx: number, subaddressIdx: number) => {
+  ipcMain.handle('wallet:getAddress', async (_, accountIdx: unknown, subaddressIdx: unknown) => {
+    if (typeof accountIdx !== 'number' || typeof subaddressIdx !== 'number') {
+      throw new Error('accountIdx and subaddressIdx must be numbers')
+    }
     return walletService.getAddress(accountIdx, subaddressIdx)
   })
 
-  ipcMain.handle('wallet:createSubaddress', async (_, accountIdx: number, label?: string) => {
+  ipcMain.handle('wallet:createSubaddress', async (_, accountIdx: unknown, label?: unknown) => {
+    if (typeof accountIdx !== 'number') throw new Error('accountIdx must be a number')
+    assertOptionalString(label, 'label')
     return walletService.createSubaddress(accountIdx, label)
   })
 
@@ -87,16 +116,27 @@ export function registerIpcHandlers(): void {
     return walletService.getTransactions()
   })
 
-  ipcMain.handle('wallet:createTx', async (_, address: string, amount: string, priority: number) => {
-    return walletService.createTx(address, amount, priority)
+  ipcMain.handle('wallet:createTx', async (_, address: unknown, amount: unknown, priority: unknown) => {
+    const addr = validateMoneroAddress(address)
+    const amt = validateAtomicAmount(amount)
+    const pri = validatePriority(priority)
+    return walletService.createTx(addr, amt, pri)
   })
 
-  ipcMain.handle('wallet:sweepTx', async (_, address: string, priority: number) => {
+  ipcMain.handle('wallet:estimateFee', async (_, priority: unknown) => {
+    const pri = validatePriority(priority)
+    return walletService.estimateFee(pri)
+  })
+
+  ipcMain.handle('wallet:sweepTx', async (_, address: unknown, priority: unknown) => {
+    const addr = validateMoneroAddress(address)
+    const pri = validatePriority(priority)
     appLog('info', 'wallet', 'Creating sweep transaction...')
-    return walletService.createSweepTx(address, priority)
+    return walletService.createSweepTx(addr, pri)
   })
 
-  ipcMain.handle('wallet:relayTx', async (_, txMetadata: string) => {
+  ipcMain.handle('wallet:relayTx', async (_, txMetadata: unknown) => {
+    assertString(txMetadata, 'txMetadata')
     appLog('info', 'wallet', 'Broadcasting transaction...')
     const hash = await walletService.relayTx(txMetadata)
     appLog('info', 'wallet', `TX broadcast — hash: ${hash.slice(0, 16)}...`)
@@ -105,31 +145,38 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle('wallet:startSync', async () => {
     appLog('info', 'wallet', 'Starting sync...')
-    walletService.onSyncProgress((progress) => {
-      const win = BrowserWindow.getAllWindows()[0]
-      if (win) win.webContents.send('wallet:syncProgress', progress)
-      if (progress.percent === 1) {
-        appLog('info', 'wallet', `Sync complete at height ${progress.height}`)
-      } else if (progress.height % 10000 === 0 && progress.height > 0) {
-        appLog('debug', 'wallet', `Syncing... ${Math.round(progress.percent * 100)}% (${progress.height}/${progress.endHeight})`)
-      }
-    })
 
-    walletService.onBalanceChanged((balance) => {
-      const win = BrowserWindow.getAllWindows()[0]
-      if (win) win.webContents.send('wallet:balanceChanged', balance)
-      appLog('info', 'wallet', `Balance updated: ${(BigInt(balance.balance) / 1000000000000n).toString()} XMR`)
-    })
+    // Register IPC→renderer forwarding listeners only once to prevent
+    // accumulation across repeated startSync calls (H1 fix)
+    if (!syncListenersRegistered) {
+      syncListenersRegistered = true
 
-    walletService.onTransactionsChanged(() => {
-      const win = BrowserWindow.getAllWindows()[0]
-      if (win) win.webContents.send('wallet:transactionsChanged')
-    })
+      walletService.onSyncProgress((progress) => {
+        const win = BrowserWindow.getAllWindows()[0]
+        if (win) win.webContents.send('wallet:syncProgress', progress)
+        if (progress.percent === 1) {
+          appLog('info', 'wallet', `Sync complete at height ${progress.height}`)
+        } else if (progress.height % 10000 === 0 && progress.height > 0) {
+          appLog('debug', 'wallet', `Syncing... ${Math.round(progress.percent * 100)}% (${progress.height}/${progress.endHeight})`)
+        }
+      })
 
-    walletService.onNewPayment(() => {
-      const win = BrowserWindow.getAllWindows()[0]
-      if (win) win.webContents.send('wallet:newPayment')
-    })
+      walletService.onBalanceChanged((_balance) => {
+        const win = BrowserWindow.getAllWindows()[0]
+        if (win) win.webContents.send('wallet:balanceChanged', _balance)
+        appLog('info', 'wallet', 'Balance updated')
+      })
+
+      walletService.onTransactionsChanged(() => {
+        const win = BrowserWindow.getAllWindows()[0]
+        if (win) win.webContents.send('wallet:transactionsChanged')
+      })
+
+      walletService.onNewPayment(() => {
+        const win = BrowserWindow.getAllWindows()[0]
+        if (win) win.webContents.send('wallet:newPayment')
+      })
+    }
 
     return walletService.startSync()
   })
@@ -138,8 +185,9 @@ export function registerIpcHandlers(): void {
     return walletService.stopSync()
   })
 
-  ipcMain.handle('wallet:getSeed', async (_, password: string) => {
-    return walletService.getSeed(password)
+  ipcMain.handle('wallet:getSeed', async (_, password: unknown) => {
+    const pw = validatePassword(password)
+    return walletService.getSeed(pw)
   })
 
   ipcMain.handle('wallet:exists', async () => {
@@ -147,18 +195,28 @@ export function registerIpcHandlers(): void {
   })
 
   // --- Node ---
-  ipcMain.handle('node:connect', async (_, uri: string) => {
-    appLog('info', 'node', `Connecting to ${uri}`)
-    const result = await nodeService.connect(uri)
-    appLog('info', 'node', `Connected to ${uri} — chain height: ${result.height}`)
+  ipcMain.handle('node:connect', async (_, uri: unknown) => {
+    const u = validateUri(uri)
+    appLog('info', 'node', `Connecting to ${u}`)
+    const result = await nodeService.connect(u)
+    // Also switch the wallet's daemon connection so it actually uses the new node
+    try {
+      await walletService.setDaemon(u)
+    } catch {
+      // Wallet may not be open yet — that's OK, it'll use this node when it opens
+    }
+    nodeService.setCurrentUri(u)
+    setLastNode(u)
+    appLog('info', 'node', `Connected — chain height: ${result.height}`)
     return result
   })
 
   // silent=true skips the log entry (used for automatic background health-checks)
-  ipcMain.handle('node:test', async (_, uri: string, silent = false) => {
-    const result = await nodeService.testConnection(uri)
+  ipcMain.handle('node:test', async (_, uri: unknown, silent = false) => {
+    const u = validateUri(uri)
+    const result = await nodeService.testConnection(u)
     if (!silent) {
-      appLog('debug', 'node', `Tested ${uri} — ${result.isHealthy ? `${result.latency}ms, height ${result.height}` : 'OFFLINE'}`)
+      appLog('debug', 'node', `Tested node — ${result.isHealthy ? `${result.latency}ms, height ${result.height}` : 'OFFLINE'}`)
     }
     return result
   })
@@ -178,20 +236,26 @@ export function registerIpcHandlers(): void {
   })
 
   // --- Light Wallet Server ---
-  ipcMain.handle('lws:setServer', async (_, uri: string) => {
+  ipcMain.handle('lws:setServer', async (_, uri: unknown) => {
+    assertString(uri, 'uri')
     if (!uri) {
       appLog('info', 'lws', 'LWS disconnected')
       lwsService.setServer(uri)
       return
     }
-    appLog('info', 'lws', `Connecting to LWS: ${uri}`)
-    lwsService.setServer(uri)
+    const u = validateUri(uri)
+    // Enforce HTTPS for LWS — view key is sent to the server
+    if (!u.startsWith('https://')) {
+      throw new Error('LWS server must use HTTPS — your private view key would be sent in cleartext over HTTP')
+    }
+    appLog('info', 'lws', 'Connecting to LWS server...')
+    lwsService.setServer(u)
     try {
       const address = await walletService.getPrimaryAddress()
       const viewKey = await walletService.getPrivateViewKey()
       lwsService.setKeys(address, viewKey)
       await lwsService.login()
-      appLog('info', 'lws', `Registered with LWS — sharing view key for ${address.slice(0, 16)}...`)
+      appLog('info', 'lws', `Registered with LWS — address: ${address.slice(0, 16)}...`)
     } catch (e: any) {
       appLog('warn', 'lws', `LWS registration failed: ${e?.message || e}`)
     }
@@ -220,12 +284,14 @@ export function registerIpcHandlers(): void {
     return lwsService.getTransactions()
   })
 
-  ipcMain.handle('lws:testServer', async (_, uri: string) => {
-    return lwsService.testConnection(uri)
+  ipcMain.handle('lws:testServer', async (_, uri: unknown) => {
+    const u = validateUri(uri)
+    return lwsService.testConnection(u)
   })
 
   // --- Cloud Sync ---
-  ipcMain.handle('sync:setFolder', async (_, folderPath: string) => {
+  ipcMain.handle('sync:setFolder', async (_, folderPath: unknown) => {
+    assertString(folderPath, 'folderPath')
     return syncService.setSyncFolder(folderPath)
   })
 
@@ -241,15 +307,19 @@ export function registerIpcHandlers(): void {
     return syncService.getContacts()
   })
 
-  ipcMain.handle('sync:saveContact', (_, contact) => {
-    return syncService.saveContact(contact)
+  ipcMain.handle('sync:saveContact', (_, contact: unknown) => {
+    if (!contact || typeof contact !== 'object') throw new Error('contact must be an object')
+    return syncService.saveContact(contact as any)
   })
 
-  ipcMain.handle('sync:deleteContact', (_, id: string) => {
+  ipcMain.handle('sync:deleteContact', (_, id: unknown) => {
+    assertString(id, 'id')
     return syncService.deleteContact(id)
   })
 
-  ipcMain.handle('sync:setTxLabel', (_, txHash: string, label: string) => {
+  ipcMain.handle('sync:setTxLabel', (_, txHash: unknown, label: unknown) => {
+    assertString(txHash, 'txHash')
+    assertString(label, 'label')
     return syncService.setTxLabel(txHash, label)
   })
 
@@ -257,14 +327,15 @@ export function registerIpcHandlers(): void {
     return syncService.getTxLabels()
   })
 
-  ipcMain.handle('sync:setPassphrase', (_, passphrase: string) => {
+  ipcMain.handle('sync:setPassphrase', (_, passphrase: unknown) => {
+    assertString(passphrase, 'passphrase')
+    if (passphrase.length < 8) throw new Error('Sync passphrase must be at least 8 characters')
     syncService.setPassphrase(passphrase)
   })
 
   // --- App ---
   ipcMain.handle('app:getLogs', () => getLogs())
   ipcMain.handle('app:clearLogs', () => clearLogs())
-  ipcMain.handle('app:openExternal', (_, url: string) => shell.openExternal(url))
 
   ipcMain.handle('app:minimize', () => {
     BrowserWindow.getFocusedWindow()?.minimize()
@@ -291,21 +362,14 @@ export function registerIpcHandlers(): void {
     return getWalletDir()
   })
 
-  ipcMain.handle('app:setWalletDir', (_, dir: string) => {
+  ipcMain.handle('app:setWalletDir', (_, dir: unknown) => {
+    assertString(dir, 'dir')
     setWalletDir(dir)
   })
 
-  ipcMain.handle('app:openFolder', async (_, folderPath: string) => {
+  ipcMain.handle('app:openFolder', async (_, folderPath: unknown) => {
+    assertString(folderPath, 'folderPath')
     await shell.openPath(folderPath)
-  })
-
-  ipcMain.handle('app:selectFile', async () => {
-    const result = await dialog.showOpenDialog({
-      properties: ['openFile'],
-      title: 'Open Monero Wallet File',
-      filters: [{ name: 'Monero Wallet', extensions: ['keys'] }],
-    })
-    return result.canceled ? null : result.filePaths[0]
   })
 
   ipcMain.handle('app:selectFolder', async () => {

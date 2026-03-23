@@ -16,6 +16,7 @@ const api: ElectronAPI = {
     createSubaddress: (accountIdx, label) => ipcRenderer.invoke('wallet:createSubaddress', accountIdx, label),
     getTransactions: () => ipcRenderer.invoke('wallet:getTransactions'),
     createTx: (address, amount, priority) => ipcRenderer.invoke('wallet:createTx', address, amount, priority),
+    estimateFee: (priority) => ipcRenderer.invoke('wallet:estimateFee', priority),
     sweepTx: (address, priority) => ipcRenderer.invoke('wallet:sweepTx', address, priority),
     relayTx: (txMetadata) => ipcRenderer.invoke('wallet:relayTx', txMetadata),
     startSync: () => ipcRenderer.invoke('wallet:startSync'),
@@ -80,13 +81,11 @@ const api: ElectronAPI = {
       ipcRenderer.on('window:maximizeChanged', handler)
       return () => ipcRenderer.removeListener('window:maximizeChanged', handler)
     },
-    selectFile: () => ipcRenderer.invoke('app:selectFile'),
     selectFolder: () => ipcRenderer.invoke('app:selectFolder'),
     getWalletDir: () => ipcRenderer.invoke('app:getWalletDir'),
     setWalletDir: (dir) => ipcRenderer.invoke('app:setWalletDir', dir),
     openFolder: (path) => ipcRenderer.invoke('app:openFolder', path),
-    openExternal: (url) => ipcRenderer.invoke('app:openExternal', url),
-    getVersion: () => '1.0.0',
+    getVersion: () => require('../../package.json').version || '0.0.0',
     getLogs: () => ipcRenderer.invoke('app:getLogs'),
     clearLogs: () => ipcRenderer.invoke('app:clearLogs'),
     onLog: (callback) => {

@@ -297,7 +297,7 @@ export default function IRS() {
     setElapsed(0)
 
     const audio = new Audio(dailupSound)
-    audio.volume = 0.85
+    audio.volume = 0.425
     audio.play().catch(() => {})
     audioRef.current = audio
 
@@ -656,6 +656,13 @@ export default function IRS() {
           )}
         </div>
       )}
+
+      {/* Disclaimer */}
+      <div style={{ padding: '12px 24px', borderTop: `1px solid ${BORDER}`, background: WHITE }}>
+        <p style={{ margin: 0, fontSize: '10px', color: MUTED, fontFamily: sans, lineHeight: 1.6, fontStyle: 'italic' }}>
+          <strong>Disclaimer:</strong> This feature is a parody and is intended for entertainment purposes only. It is not affiliated with, endorsed by, or connected to the Internal Revenue Service (IRS) or any government agency. No information entered here is submitted to the IRS or used for real tax filing. Do not enter real personal, financial, or tax information.
+        </p>
+      </div>
 
       <style>{`
         @keyframes irscur    { 0%,100%{opacity:1} 50%{opacity:0} }

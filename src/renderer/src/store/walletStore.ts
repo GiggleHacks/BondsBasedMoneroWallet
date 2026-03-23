@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { TransactionInfo, PriceHistoryPoint } from '@shared/types'
+import type { TransactionInfo } from '@shared/types'
 
 interface WalletState {
   // Connection state
@@ -19,7 +19,6 @@ interface WalletState {
   currentWalletName: string | null
   xmrPriceUsd: number | null
   xmrChange24h: number | null
-  priceHistory24h: PriceHistoryPoint[] | null
 
   // Actions
   setWalletOpen: (isOpen: boolean) => void
@@ -34,7 +33,6 @@ interface WalletState {
   setSeed: (seed: string | null) => void
   setXmrPrice: (price: number | null) => void
   setXmrChange24h: (change: number | null) => void
-  setPriceHistory24h: (history: PriceHistoryPoint[]) => void
   reset: () => void
 }
 
@@ -53,7 +51,6 @@ const initialState = {
   currentWalletName: null,
   xmrPriceUsd: null,
   xmrChange24h: null,
-  priceHistory24h: null,
 }
 
 export const useWalletStore = create<WalletState>((set) => ({
@@ -71,6 +68,5 @@ export const useWalletStore = create<WalletState>((set) => ({
   setSeed: (seed) => set({ seed }),
   setXmrPrice: (xmrPriceUsd) => set({ xmrPriceUsd }),
   setXmrChange24h: (xmrChange24h) => set({ xmrChange24h }),
-  setPriceHistory24h: (priceHistory24h) => set({ priceHistory24h }),
   reset: () => set(initialState),
 }))

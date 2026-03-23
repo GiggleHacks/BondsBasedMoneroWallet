@@ -140,20 +140,23 @@ export default function Onboarding() {
     disclaimerIndexRef.current = 0
     disclaimerDoneRef.current = false
 
+    let intervalId: ReturnType<typeof setInterval> | null = null
     const delay = setTimeout(() => {
-      const interval = setInterval(() => {
+      intervalId = setInterval(() => {
         if (disclaimerIndexRef.current < disclaimer.length) {
           disclaimerIndexRef.current++
           setTypedDisclaimer(disclaimer.slice(0, disclaimerIndexRef.current))
         } else {
           disclaimerDoneRef.current = true
-          clearInterval(interval)
+          if (intervalId) clearInterval(intervalId)
         }
       }, 18) // fast DOS-style typing
-      return () => clearInterval(interval)
     }, 400)
 
-    return () => clearTimeout(delay)
+    return () => {
+      clearTimeout(delay)
+      if (intervalId) clearInterval(intervalId)
+    }
   }, [step])
 
   useEffect(() => {

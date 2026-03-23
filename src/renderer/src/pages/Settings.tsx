@@ -45,6 +45,7 @@ export default function Settings() {
   const [testingAll, setTestingAll] = useState(false)
   const [connectedNode, setConnectedNode] = useState('')
   const [customNodeUri, setCustomNodeUri] = useState('')
+  const [connectingNode, setConnectingNode] = useState<string | null>(null)
 
   // LWS
   const [lwsActive, setLwsActive] = useState(false)
@@ -70,6 +71,10 @@ export default function Settings() {
     window.api.app.getWalletDir().then(setWalletDir).catch(() => {})
     window.api.lws.isActive().then(setLwsActive).catch(() => {})
     window.api.lws.getServer().then(setLwsServer).catch(() => {})
+    // Load the currently connected node so the UI reflects the active connection
+    window.api.node.getConnectedNode().then(uri => {
+      if (uri) setConnectedNode(uri)
+    }).catch(() => {})
     // Load existing logs
     window.api.app.getLogs().then(setLogs).catch(() => {})
     // Subscribe to new logs
@@ -96,10 +101,15 @@ export default function Settings() {
   }
 
   const connectNode = async (uri: string) => {
+    setConnectingNode(uri)
     try {
       await window.api.node.connect(uri)
       setConnectedNode(uri)
-    } catch {}
+    } catch (e) {
+      console.error('Failed to connect to node:', e)
+    } finally {
+      setConnectingNode(null)
+    }
   }
 
   const testAllNodes = async () => {
@@ -226,13 +236,21 @@ export default function Settings() {
                       )}
                       <button
                         onClick={() => connectNode(node.uri)}
+                        disabled={connectingNode === node.uri}
                         className={`text-xs px-3 py-1.5 rounded-md transition-colors ${
                           connectedNode === node.uri
                             ? 'bg-status-success/10 text-status-success'
-                            : 'bg-bg-hover text-text-secondary hover:text-text-primary'
+                            : connectingNode === node.uri
+                              ? 'bg-bg-hover text-text-muted cursor-wait'
+                              : 'bg-bg-hover text-text-secondary hover:text-text-primary'
                         }`}
                       >
-                        {connectedNode === node.uri ? 'Connected' : 'Connect'}
+                        {connectingNode === node.uri ? (
+                          <span className="flex items-center gap-1">
+                            <Loader2 size={12} className="animate-spin" />
+                            Connecting...
+                          </span>
+                        ) : connectedNode === node.uri ? 'Connected' : 'Connect'}
                       </button>
                     </div>
                   </div>

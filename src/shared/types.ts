@@ -87,6 +87,7 @@ export interface WalletAPI {
   createSubaddress: (accountIdx: number, label?: string) => Promise<{ address: string; index: number }>
   getTransactions: () => Promise<TransactionInfo[]>
   createTx: (address: string, amount: string, priority: number) => Promise<TxPreview>
+  estimateFee: (priority: number) => Promise<string>
   sweepTx: (address: string, priority: number) => Promise<TxPreview>
   relayTx: (txMetadata: string) => Promise<string>
   startSync: () => Promise<void>
@@ -135,12 +136,10 @@ export interface AppAPI {
   close: () => void
   isMaximized: () => Promise<boolean>
   onMaximizeChange: (callback: (isMaximized: boolean) => void) => () => void
-  selectFile: () => Promise<string | null>
   selectFolder: () => Promise<string | null>
   getWalletDir: () => Promise<string>
   setWalletDir: (dir: string) => Promise<void>
   openFolder: (path: string) => Promise<void>
-  openExternal: (url: string) => Promise<void>
   getVersion: () => string
   getLogs: () => Promise<LogEntry[]>
   clearLogs: () => Promise<void>

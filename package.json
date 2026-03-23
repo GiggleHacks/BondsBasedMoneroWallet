@@ -1,17 +1,14 @@
 {
   "name": "bonds-based-monero-wallet",
-  "version": "1.0.0",
+  "version": "1.2.0",
   "description": "Bond's Based Monero Wallet - For GigaChads",
   "main": "./out/main/index.js",
   "scripts": {
     "dev": "electron-vite dev",
     "build": "electron-vite build",
     "preview": "electron-vite preview",
-    "package": "node -e \"const p=process.platform; const s={win32:'package:win',darwin:'package:mac',linux:'package:linux'}[p]; if(!s){console.error('Unsupported platform: '+p); process.exit(1);} require('child_process').spawnSync(process.platform==='win32'?'npm.cmd':'npm',['run',s],{stdio:'inherit'});\"",
-    "package:win": "electron-vite build && electron-builder --win",
-    "package:portable": "electron-vite build && electron-builder --win --config.win.target=portable",
-    "package:mac": "electron-vite build && electron-builder --mac",
-    "package:linux": "electron-vite build && electron-builder --linux"
+    "package": "electron-vite build && electron-builder --win",
+    "package:portable": "electron-vite build && electron-builder --win --config.win.target=portable"
   },
   "keywords": [
     "monero",
@@ -71,7 +68,9 @@
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
-      "deleteAppDataOnUninstall": false
+      "deleteAppDataOnUninstall": false,
+      "createDesktopShortcut": true,
+      "perMachine": true
     },
     "portable": {
       "artifactName": "${productName}-${version}-portable.exe"

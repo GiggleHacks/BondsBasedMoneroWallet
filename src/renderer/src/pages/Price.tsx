@@ -17,10 +17,10 @@ const TIMEFRAMES = [
 ] as const
 
 export default function Price() {
-  const { xmrPriceUsd, xmrChange24h, priceHistory24h, setXmrPrice, setXmrChange24h } = useWalletStore()
-  const [timeframe, setTimeframe] = useState('1')
-  const [historyData, setHistoryData] = useState<PriceHistoryPoint[]>(() => priceHistory24h ?? [])
-  const [loading, setLoading] = useState(priceHistory24h == null)
+  const { xmrPriceUsd, xmrChange24h, setXmrPrice, setXmrChange24h } = useWalletStore()
+  const [timeframe, setTimeframe] = useState('7')
+  const [historyData, setHistoryData] = useState<PriceHistoryPoint[]>([])
+  const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
 
   // Fetch current price on mount
@@ -52,9 +52,8 @@ export default function Price() {
     }, delay)
   }, [historyData.length])
 
-  // Fetch history when timeframe changes (skip if cache already covers 24h on first load)
+  // Fetch history when timeframe changes
   useEffect(() => {
-    if (timeframe === '1' && priceHistory24h != null && historyData.length > 0) return
     fetchHistory(timeframe)
   }, [timeframe])
 

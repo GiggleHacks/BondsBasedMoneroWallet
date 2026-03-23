@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from 'react'
 import type { TransactionInfo } from '../../../shared/types'
+import { formatXmrDisplay } from '../lib/formatXmr'
 
 interface IRSModalProps {
   open: boolean
@@ -24,16 +25,7 @@ const FULL_MESSAGE = `> INITIALIZING IRS COMPLIANCE MODULE...
 > READY FOR VOLUNTARY DISCLOSURE.
 > _`
 
-// Atomic units → XMR (12 decimal places)
-function atomicToXmr(atomic: string): string {
-  try {
-    const n = BigInt(atomic)
-    const xmr = Number(n) / 1e12
-    return xmr.toFixed(6)
-  } catch {
-    return '0.000000'
-  }
-}
+// Use shared formatXmrDisplay from lib/formatXmr instead of local duplicate
 
 function formatTs(ts: number): string {
   if (!ts) return '----/--/-- --:--'
@@ -337,7 +329,7 @@ export default function IRSModal({ open, onClose, transactions }: IRSModalProps)
                   </span>
                   <span style={{ color: 'rgba(51,255,51,0.25)' }}>│</span>
                   <span style={{ color: '#aaff66', minWidth: '110px', letterSpacing: '0.04em' }}>
-                    {atomicToXmr(tx.amount)} XMR
+                    {formatXmrDisplay(tx.amount, 6)} XMR
                   </span>
                   <span style={{ color: 'rgba(51,255,51,0.25)' }}>│</span>
                   <span style={{ color: '#1a8c1a', fontSize: '10px' }}>

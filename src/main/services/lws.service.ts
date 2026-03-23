@@ -163,8 +163,9 @@ class LightWalletService {
       const isIncoming = received > sent
       const amount = isIncoming ? received - sent : sent - received
 
-      // Estimate fee from spent outputs for outgoing tx
-      const fee = !isIncoming && sent > 0n ? '0' : '0'
+      // LWS does not provide fee data — the previous calculation was always 0.
+      // Show '0' as a known limitation of LWS mode (M6 fix).
+      const fee = '0'
 
       const blockchainHeight = data.blockchain_height || 0
       const confirmations = tx.height > 0 && blockchainHeight > 0

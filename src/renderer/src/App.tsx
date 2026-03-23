@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef, useCallback } from 'react'
 import { Routes, Route, Navigate, useNavigate } from 'react-router-dom'
 import { Toaster } from 'react-hot-toast'
 import { AnimatePresence } from 'framer-motion'
@@ -6,6 +6,7 @@ import startupSound from '@/assets/sounds/startup3.mp3'
 import clickySound from '@/assets/sounds/clicky2.mp3'
 import moneySound from '@/assets/sounds/money.mp3'
 import { playSound } from '@/lib/playSound'
+import { AUTO_LOCK_TIMEOUT } from '@shared/constants'
 
 import AppLayout from './components/layout/AppLayout'
 import Onboarding from './pages/Onboarding'
@@ -17,10 +18,31 @@ import Transactions from './pages/Transactions'
 import Settings from './pages/Settings'
 import Price from './pages/Price'
 import IRS from './pages/IRS'
+import Swap from './pages/Swap'
 
 export default function App() {
   const [initialRoute, setInitialRoute] = useState<string | null>(null)
   const navigate = useNavigate()
+  const autoLockTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const isLockedRef = useRef(false)
+
+  // Auto-lock: reset idle timer on user activity (H6 fix)
+  const resetAutoLock = useCallback(() => {
+    if (isLockedRef.current) return
+    if (autoLockTimerRef.current) clearTimeout(autoLockTimerRef.current)
+    autoLockTimerRef.current = setTimeout(async () => {
+      // Only lock if we're inside the app (not on onboarding/unlock)
+      const path = window.location.hash || window.location.pathname
+      if (path.includes('onboarding') || path.includes('unlock')) return
+      isLockedRef.current = true
+      try {
+        await window.api.wallet.stopSync()
+        await window.api.wallet.close()
+      } catch {}
+      navigate('/unlock')
+      isLockedRef.current = false
+    }, AUTO_LOCK_TIMEOUT)
+  }, [navigate])
 
   useEffect(() => {
     playSound(startupSound, 'startup', 0.8)
@@ -39,9 +61,16 @@ export default function App() {
       playSound(moneySound, 'receive', 0.9)
     })
 
+    // Auto-lock: track user activity
+    const activityEvents = ['mousedown', 'keydown', 'scroll', 'touchstart'] as const
+    activityEvents.forEach(evt => document.addEventListener(evt, resetAutoLock))
+    resetAutoLock() // start the timer
+
     return () => {
       document.removeEventListener('mousedown', handleClick)
       unsubPayment()
+      activityEvents.forEach(evt => document.removeEventListener(evt, resetAutoLock))
+      if (autoLockTimerRef.current) clearTimeout(autoLockTimerRef.current)
     }
   }, [])
 
@@ -49,8 +78,8 @@ export default function App() {
     try {
       const wallets = await window.api.wallet.listWallets()
       if (wallets.length > 0) {
-        setInitialRoute('/onboarding')
-        navigate('/onboarding')
+        setInitialRoute('/unlock')
+        navigate('/unlock')
       } else {
         setInitialRoute('/onboarding')
         navigate('/onboarding')
@@ -105,6 +134,7 @@ export default function App() {
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/send" element={<Send />} />
             <Route path="/receive" element={<Receive />} />
+            <Route path="/swap" element={<Swap />} />
             <Route path="/transactions" element={<Transactions />} />
             <Route path="/price" element={<Price />} />
             <Route path="/settings" element={<Settings />} />

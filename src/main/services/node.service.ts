@@ -1,5 +1,6 @@
 import { DEFAULT_NODES } from '../../shared/constants'
 import type { NodeInfo } from '../../shared/types'
+import { isHttps } from '../utils/validators'
 
 let moneroTs: any = null
 try {
@@ -8,28 +9,27 @@ try {
   console.error('[node] monero-ts failed to load:', e)
 }
 
+/** Build daemon connection config with proper TLS handling (C1 fix). */
+function daemonConfig(uri: string): any {
+  return { uri, rejectUnauthorized: isHttps(uri) }
+}
+
 class NodeService {
   private currentUri: string | null = null
 
   async connect(uri: string): Promise<{ height: number }> {
     if (!moneroTs) { this.currentUri = uri; return { height: 0 } }
-    try {
-      const daemon = await moneroTs.connectToDaemonRpc({ uri, rejectUnauthorized: false })
-      const height = await daemon.getHeight()
-      this.currentUri = uri
-      return { height }
-    } catch (e) {
-      console.warn(`[node] Failed to connect to ${uri}:`, e)
-      this.currentUri = uri
-      return { height: 0 }
-    }
+    const daemon = await moneroTs.connectToDaemonRpc(daemonConfig(uri))
+    const height = await daemon.getHeight()
+    this.currentUri = uri
+    return { height }
   }
 
   async testConnection(uri: string): Promise<{ latency: number; height: number; isHealthy: boolean }> {
     if (!moneroTs) return { latency: 0, height: 0, isHealthy: false }
     const start = Date.now()
     try {
-      const daemon = await moneroTs.connectToDaemonRpc({ uri, rejectUnauthorized: false })
+      const daemon = await moneroTs.connectToDaemonRpc(daemonConfig(uri))
       const height = await daemon.getHeight()
       return { latency: Date.now() - start, height, isHealthy: true }
     } catch {

@@ -16,6 +16,7 @@ import {
 } from 'lucide-react'
 import { useWalletStore } from '../store/walletStore'
 import { formatXmrDisplay, formatTimestamp, truncateAddress, atomicToUsd, formatUsd } from '../lib/formatXmr'
+
 export default function Dashboard() {
   const navigate = useNavigate()
   const {
@@ -39,6 +40,9 @@ export default function Dashboard() {
   const [nodeLatency, setNodeLatency] = useState<number | null>(null)
   // Initialize from store — if we already have chain height, sync was previously started
   const [syncStarted, setSyncStarted] = useState(() => chainHeight > 0)
+  // Track the actual percent from monero-ts (more accurate than our own calculation)
+  const [syncPercentFromNode, setSyncPercentFromNode] = useState<number | null>(null)
+  const [syncStartHeight, setSyncStartHeight] = useState(0)
   const [lwsActive, setLwsActive] = useState(false)
   const [lwsServer, setLwsServer] = useState<string | null>(null)
   const latencyIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -58,19 +62,23 @@ export default function Dashboard() {
     loadData()
     loadNodeInfo()
 
-    // Listen for full-node sync updates
+    // Listen for full-node sync updates — use the real percent from monero-ts
     const unsubSync = window.api.wallet.onSyncProgress((progress) => {
       setSyncStarted(true)
+      setSyncStartHeight(prev => prev || progress.startHeight)
       setSyncProgress(progress.height, progress.endHeight)
+      // monero-ts percent is 0.0–1.0, convert to 0–100
+      setSyncPercentFromNode(Math.min(100, Math.round(progress.percent * 100)))
     })
 
     const unsubBalance = window.api.wallet.onBalanceChanged((bal) => {
       setBalance(bal.balance, bal.unlockedBalance)
     })
 
-    // Poll: LWS every 10s (fast), full node every 30s
+    // Poll: LWS every 10s (fast), full node every 5s during sync, 30s when synced
     const lwsInterval = setInterval(loadLwsData, 10000)
-    const nodeInterval = setInterval(loadData, 30000)
+    // Use faster polling (5s) to keep sync display responsive
+    const nodeInterval = setInterval(loadData, 5000)
     latencyIntervalRef.current = setInterval(pingNode, 90000)
 
     return () => {
@@ -109,24 +117,22 @@ export default function Dashboard() {
   }
 
   const loadData = async () => {
-    // If LWS is active, only load full-node sync progress (not balance/txs)
     try {
-      if (lwsActive) {
-        const info = await window.api.wallet.getInfo()
-        // Don't overwrite LWS balance data, just track node sync
-        return
-      }
-
-      const [bal, info, txs] = await Promise.all([
-        window.api.wallet.getBalance(),
-        window.api.wallet.getInfo(),
-        window.api.wallet.getTransactions(),
-      ])
-      setBalance(bal.balance, bal.unlockedBalance)
+      const info = await window.api.wallet.getInfo()
+      // Always update sync progress from the wallet (even if LWS handles balance)
       if (info.chainHeight > 0) {
         setSyncStarted(true)
         setSyncProgress(info.syncHeight, info.chainHeight)
       }
+
+      // If LWS is active, don't overwrite LWS balance/tx data
+      if (lwsActive) return
+
+      const [bal, txs] = await Promise.all([
+        window.api.wallet.getBalance(),
+        window.api.wallet.getTransactions(),
+      ])
+      setBalance(bal.balance, bal.unlockedBalance)
       setTransactions(txs)
     } catch {
       // Wallet might not be ready yet
@@ -159,9 +165,13 @@ export default function Dashboard() {
     setTimeout(() => setCopied(false), 2000)
   }
 
-  const syncPercent = (syncStarted && chainHeight > 0)
-    ? Math.min(100, Math.floor((syncHeight / chainHeight) * 100))
-    : null
+  // Prefer monero-ts's real percent (accounts for startHeight properly)
+  // Fall back to our own calculation from heights
+  const syncPercent = syncPercentFromNode !== null
+    ? syncPercentFromNode
+    : (syncStarted && chainHeight > 0)
+      ? Math.min(100, Math.floor((syncHeight / chainHeight) * 100))
+      : null
   const lockedBalance = BigInt(balance) - BigInt(unlockedBalance)
   const hasLockedBalance = lockedBalance > 0n
   const recentTxs = [...transactions]
@@ -282,13 +292,6 @@ export default function Dashboard() {
               <ArrowDownLeft size={18} />
               Receive
             </button>
-            <button
-              onClick={() => window.api.app.openExternal('https://ff.io/?ref=1utm5vqa')}
-              className="btn-secondary flex items-center gap-2"
-            >
-              <TrendingUp size={18} />
-              Swap XMR
-            </button>
           </div>
         </div>
       </motion.div>
@@ -399,26 +402,33 @@ export default function Dashboard() {
           <span className="text-sm font-mono text-text-muted">
             {syncStarted
               ? `${syncHeight.toLocaleString()} / ${chainHeight.toLocaleString()}`
-              : 'Connecting...'
+              : 'Connecting to node...'
             }
           </span>
         </div>
-        <div className="w-full h-1.5 bg-bg-primary rounded-full overflow-hidden">
+        <div className="w-full h-2 bg-bg-primary rounded-full overflow-hidden">
           <motion.div
             className="h-full bg-gradient-accent rounded-full"
             initial={{ width: 0 }}
             animate={{ width: syncPercent !== null ? `${syncPercent}%` : '0%' }}
-            transition={{ duration: 0.5, ease: 'easeOut' }}
+            transition={{ duration: 0.8, ease: 'easeOut' }}
           />
         </div>
-        <p className="text-xs text-text-muted mt-1">
-          {syncPercent === null
-            ? 'Waiting for node connection...'
-            : syncPercent === 100
-              ? 'Fully synced'
-              : `${syncPercent}% synced`
-          }
-        </p>
+        <div className="flex items-center justify-between mt-1.5">
+          <p className="text-xs text-text-muted">
+            {syncPercent === null
+              ? 'Waiting for node connection...'
+              : syncPercent >= 100
+                ? 'Fully synced'
+                : `${syncPercent}% synced`
+            }
+          </p>
+          {syncStarted && syncPercent !== null && syncPercent < 100 && chainHeight > 0 && (
+            <p className="text-xs text-text-muted font-mono">
+              {(chainHeight - syncHeight).toLocaleString()} blocks remaining
+            </p>
+          )}
+        </div>
 
         {/* Connected node/LWS info */}
         <div className="flex items-center gap-4 mt-3 pt-3 border-t border-border">
@@ -436,7 +446,6 @@ export default function Dashboard() {
           )}
         </div>
       </motion.div>
-
     </div>
   )
 }

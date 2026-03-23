@@ -55,7 +55,7 @@ export default function AppLayout() {
         .then(data => { if (data && data.length > 0) setPriceHistory24h(data) })
         .catch(() => {})
     }, 2000)
-  }, [])
+  }, [setPriceHistory24h])
 
   useEffect(() => {
     // Seed with most recent log

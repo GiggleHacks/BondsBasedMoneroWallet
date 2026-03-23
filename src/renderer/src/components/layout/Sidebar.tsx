@@ -1,5 +1,5 @@
 import { useLocation, useNavigate } from 'react-router-dom'
-import { LayoutDashboard, ArrowUpRight, ArrowDownLeft, TrendingUp, Settings, Landmark } from 'lucide-react'
+import { LayoutDashboard, ArrowUpRight, ArrowDownLeft, RefreshCw, TrendingUp, Settings, Landmark } from 'lucide-react'
 import { lazy, Suspense, useState, useEffect } from 'react'
 import mascotImg from '@/assets/davidbond2.png'
 
@@ -23,6 +23,7 @@ const navItems = [
   { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { path: '/send', label: 'Send XMR', icon: ArrowUpRight },
   { path: '/receive', label: 'Receive', icon: ArrowDownLeft },
+  { path: '/swap', label: 'Swap', icon: RefreshCw },
   { path: '/settings', label: 'Settings', icon: Settings },
   { path: '/price', label: 'Price', icon: TrendingUp },
   { path: '/irs', label: 'FILE TAXES', icon: Landmark },

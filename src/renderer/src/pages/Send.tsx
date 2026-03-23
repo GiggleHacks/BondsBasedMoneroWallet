@@ -49,7 +49,8 @@ export default function Send() {
     return xmrToAtomic(amount)
   }
 
-  // Live fee estimation — debounced 400ms
+  // Lightweight fee estimation — uses priority-based estimate instead of
+  // constructing a full unsigned transaction on every keystroke (C4 fix)
   useEffect(() => {
     if (isSweep) return
     if (!validateAddress(address) || !amount || parseFloat(amount) <= 0) {
@@ -63,15 +64,14 @@ export default function Send() {
 
     feeTimerRef.current = setTimeout(async () => {
       try {
-        const atomicAmount = getAtomicAmount()
-        const result = await window.api.wallet.createTx(address, atomicAmount, priority)
-        if (!cancelled) setFeeEstimate(result.fee)
+        const fee = await window.api.wallet.estimateFee(priority)
+        if (!cancelled) setFeeEstimate(fee)
       } catch {
         if (!cancelled) setFeeEstimate(null)
       } finally {
         if (!cancelled) setFeeLoading(false)
       }
-    }, 400)
+    }, 200)
 
     return () => {
       cancelled = true
